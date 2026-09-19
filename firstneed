@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="UJ36A电位差计校准毫安表数据处理、两类异常自动筛查与复测分析工具">
+  <title>电位差计校准分析台</title>
+  <style>
+    :root{
+      --navy:#0b2135;--navy2:#143c5c;--blue:#1677b8;--cyan:#2aa6b8;
+      --ink:#162433;--muted:#627486;--line:#d9e4ec;--line2:#eaf0f5;
+      --panel:#ffffff;--bg:#f2f6f9;--soft:#f7fafc;
+      --green:#14745f;--green-bg:#eaf7f2;--amber:#9a6716;--amber-bg:#fff6dc;
+      --red:#b52b24;--red-bg:#fff0ee;--shadow:0 14px 34px rgba(13,42,64,.08);
+    }
+    *{box-sizing:border-box}
+    html{scroll-behavior:smooth}
+    body{margin:0;background:var(--bg);color:var(--ink);font-family:"Microsoft YaHei","PingFang SC",Arial,sans-serif;font-size:16px;line-height:1.55}
+    button,input,select,textarea{font:inherit}
+    button{cursor:pointer}
+    .app-header{background:linear-gradient(110deg,#0b2941,#155171);color:#fff}
+    .header-inner{max-width:1480px;margin:0 auto;padding:19px 24px;display:flex;justify-content:space-between;align-items:center;gap:24px}
+    .app-header h1{margin:0;font-size:28px;letter-spacing:.03em;line-height:1.2}
+    .app-header .subtitle{margin:7px 0 0;color:#d2e7f1;font-size:15px}
+    .header-badge{border-left:1px solid rgba(255,255,255,.28);padding:4px 0 4px 18px;color:#d9edf4;font-size:14px;white-space:nowrap}
+    .shell{max-width:1480px;margin:0 auto;padding:18px 24px 54px}
+    .toolbar{position:sticky;top:0;z-index:20;display:flex;justify-content:space-between;align-items:center;gap:14px;padding:12px 0;background:rgba(242,246,249,.94);backdrop-filter:blur(12px)}
+    .toolbar-group{display:flex;gap:9px;flex-wrap:wrap}
+    button,.button{border:1px solid transparent;border-radius:8px;padding:9px 13px;background:var(--blue);color:#fff;font-weight:700;box-shadow:0 4px 10px rgba(22,119,184,.16);transition:.18s ease;text-decoration:none;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+    button:hover,.button:hover{transform:translateY(-1px);filter:brightness(.97)}
+    button.secondary,.button.secondary{background:#fff;color:var(--navy2);border-color:#cfdae3;box-shadow:none}
+    button.ghost{background:transparent;color:var(--muted);border-color:transparent;box-shadow:none}
+    button.danger{background:#fff;color:var(--red);border-color:#edc2be;box-shadow:none}
+    input[type=file]{display:none}
+    .hero-grid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(360px,.85fr);gap:16px;margin-bottom:16px}
+    .analysis-hero{background:#fff;border:1px solid #dbe6ed;border-radius:14px;padding:20px;box-shadow:0 8px 24px rgba(13,42,64,.055);min-width:0}
+    .section-kicker{color:var(--blue);font-size:13px;font-weight:800;letter-spacing:.12em;margin-bottom:5px}
+    h2{font-size:21px;line-height:1.3;margin:0;color:var(--navy)}
+    h3{font-size:16px;margin:0;color:var(--navy)}
+    .hero-conclusion{font-size:17px;color:#365269;margin:10px 0 17px;max-width:900px}
+    .metric-row{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+    .metric{padding:13px 14px;border-left:3px solid #bcd7e8;background:#fff;border-radius:3px 9px 9px 3px;box-shadow:0 3px 12px rgba(13,42,64,.045);min-width:0}
+    .metric span{display:block;font-size:13px;color:var(--muted);white-space:nowrap}
+    .metric strong{display:block;margin-top:3px;font-size:22px;color:var(--navy);line-height:1.25}
+    .metric em{display:block;margin-top:2px;font-size:12px;color:var(--muted);font-style:normal;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .metric.grade{border-left-color:var(--blue)}.metric.fail{border-left-color:var(--red)}.metric.watch{border-left-color:#d69b31}.metric.ub{border-left-color:var(--cyan)}
+    .scan-panel{background:#f7fbfd;color:var(--ink);border:1px solid #cfe0e9;border-top:4px solid var(--navy2);border-radius:14px;padding:17px 19px 19px;box-shadow:0 8px 24px rgba(13,42,64,.055);min-width:0}
+    .scan-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:14px}
+    .scan-head h2{color:var(--navy)}
+    .scan-head p{margin:4px 0 0;color:var(--muted);font-size:13px}
+    .scan-total{min-width:58px;text-align:center;border:1px solid #c9dce7;background:#fff;border-radius:10px;padding:7px}
+    .scan-total b{display:block;font-size:23px;color:var(--navy)}.scan-total span{font-size:11px;color:var(--muted)}
+    .scan-list{display:grid;gap:9px}
+    .scan-item{padding:10px 11px;background:#fff;border:1px solid #dce7ed;border-radius:9px}
+    .scan-item-top{display:flex;justify-content:space-between;gap:12px;align-items:center}
+    .scan-item b{font-size:14px;color:var(--navy)}.scan-item small{font-size:12px;color:var(--muted)}
+    .scan-definition{margin:7px 0 0;color:#476176;font-size:13px;line-height:1.55}
+    .scan-example{margin:8px 0 0;padding:7px 9px;background:#f2f7fa;border-radius:6px;color:#36566c;font-size:12px;line-height:1.55}
+    .point-list{display:flex;gap:5px;flex-wrap:wrap;margin-top:8px;min-height:24px}
+    .point-tag{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;background:#e8f1f6;color:var(--navy);font-size:12px;font-weight:800}
+    .point-tag.fail{background:#ffd9d5;color:#8e201a}.point-tag.watch{background:#ffe9a9;color:#754e0c}.point-tag.ok{background:#d8f3e9;color:#0f624f}
+    .panel{background:#fff;border:1px solid #dfe8ee;border-radius:14px;box-shadow:0 8px 24px rgba(13,42,64,.055);margin-bottom:16px;overflow:hidden}
+    .panel-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;padding:18px 20px;border-bottom:1px solid var(--line2)}
+    .panel-head p{margin:5px 0 0;color:var(--muted);font-size:14px}
+    .legend{display:flex;gap:12px;align-items:center;flex-wrap:wrap;color:var(--muted);font-size:13px}
+    .legend span{display:inline-flex;align-items:center;gap:6px}
+    .dot{width:8px;height:8px;border-radius:50%;display:inline-block}.dot.green{background:var(--green)}.dot.amber{background:#d59a2d}.dot.red{background:var(--red)}
+    .config-body{padding:0 20px 20px;border-top:1px solid var(--line2)}
+    .form-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:13px;padding-top:17px}
+    label{display:block;color:#536a7d;font-size:14px;margin-bottom:6px}
+    input,select,textarea{width:100%;border:1px solid #cbd8e1;border-radius:7px;background:#fff;color:var(--ink);padding:8px 9px;min-height:39px}
+    input:focus,select:focus,textarea:focus{outline:3px solid #dceef8;border-color:var(--blue)}
+    .unit{display:grid;grid-template-columns:1fr auto;align-items:center;gap:7px}.unit>span{color:var(--muted);font-size:13px}
+    .method-note{margin-top:15px;padding:11px 13px;background:#eef7fb;border-left:3px solid var(--cyan);border-radius:4px 8px 8px 4px;color:#35566b;font-size:14px}
+    .table-wrap{overflow:auto;max-height:600px}
+    table{width:100%;border-collapse:collapse;min-width:1220px;background:#fff}
+    th{position:sticky;top:0;z-index:2;background:#edf4f8;color:#29485e;font-size:13px;padding:10px 7px;border-bottom:1px solid #cfdae3;white-space:nowrap;text-align:center}
+    td{padding:8px 7px;border-bottom:1px solid #edf2f5;text-align:center;white-space:nowrap;font-size:14px}
+    tr:last-child td{border-bottom:0}
+    td input,td select{padding:6px 7px;min-width:72px;min-height:34px;text-align:center;font-size:14px}
+    tr.status-fail{background:var(--red-bg)}tr.status-watch{background:var(--amber-bg)}tr.status-ok{background:#fff}
+    .status-pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:4px 9px;font-size:12px;font-weight:800}
+    .status-pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+    .status-pill.ok{background:var(--green-bg);color:var(--green)}.status-pill.watch{background:var(--amber-bg);color:var(--amber)}.status-pill.fail{background:var(--red-bg);color:var(--red)}
+    .analysis-grid{display:grid;grid-template-columns:minmax(0,1.65fr) minmax(330px,.75fr);gap:16px;margin-bottom:16px}
+    .analysis-grid>.panel{margin:0}
+    .chart-wrap{padding:12px 18px 18px}
+    #chartHost svg{width:100%;height:auto;display:block}
+    .formula-panel{padding:20px;background:linear-gradient(160deg,#fff 0%,#f7fbfd 100%)}
+    .formula-panel h2{margin-bottom:5px}.formula-panel>p{margin:0 0 13px;color:var(--muted);font-size:14px}
+    .formula{font-family:Cambria,"Times New Roman",serif;font-size:18px;background:#fff;border:1px solid var(--line);border-radius:9px;padding:11px 12px;margin:8px 0;color:#18364d;overflow:auto}
+    .formula-caption{font-family:"Microsoft YaHei","PingFang SC",Arial,sans-serif;font-size:12px;color:var(--muted);display:block;margin-bottom:3px}
+    .formula-note{padding:11px 12px;background:#eef7fb;border-radius:8px;margin-top:13px;color:#35566b;font-size:13px}
+    .retest-host{padding:4px 20px 20px}
+    .retest-intro{margin:0;padding:13px 20px;background:#fff8e7;color:#6d511d;border-bottom:1px solid #f2dfac;font-size:14px}
+    .empty{padding:24px 4px;color:var(--muted);text-align:center}
+    .retest-card{border:1px solid var(--line);border-left:4px solid #d49a2e;border-radius:5px 10px 10px 5px;padding:15px;margin:12px 0;background:#fbfdff}
+    .retest-title{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:12px}.retest-title h3{font-size:17px}.reason-tag{font-size:12px;padding:3px 8px;border-radius:999px;background:#fff0d0;color:#7c5713;font-weight:700}
+    .retest-grid{display:grid;grid-template-columns:repeat(3,minmax(180px,1fr));gap:10px;align-items:start}
+    .retest-pair{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px;border:1px solid #dce7ed;border-radius:8px;background:#fff}
+    .retest-pair b{grid-column:1/-1;color:var(--navy);font-size:13px}.retest-pair label{font-size:12px;margin-bottom:4px}.retest-pair input{min-width:0}
+    .retest-result{margin-top:12px;padding:10px 12px;background:#edf6fa;border-radius:8px;color:#36566c;font-size:14px}
+    .report-only{display:none}
+    @media(max-width:1100px){.hero-grid,.analysis-grid{grid-template-columns:1fr}.form-grid{grid-template-columns:repeat(2,1fr)}.metric-row{grid-template-columns:repeat(2,1fr)}.retest-grid{grid-template-columns:1fr 1fr}}
+    @media(max-width:700px){body{font-size:15px}.header-inner{padding:18px 16px;align-items:flex-start;flex-direction:column}.app-header h1{font-size:26px}.header-badge{border-left:0;padding:0}.shell{padding:12px 12px 40px}.toolbar{align-items:stretch;flex-direction:column}.toolbar-group{display:grid;grid-template-columns:1fr 1fr}.toolbar-group button,.toolbar-group .button{width:100%}.toolbar-group .ghost{display:none}.metric-row{grid-template-columns:1fr 1fr}.metric strong{font-size:19px}.form-grid{grid-template-columns:1fr}.retest-grid{grid-template-columns:1fr}.panel-head{flex-direction:column}.hero-grid{grid-template-columns:minmax(0,1fr)}.scan-panel{padding:17px}}
+    @media print{
+      @page{size:A4 portrait;margin:12mm}
+      body{background:#fff;font-size:10pt}.screen-only,.app-header{display:none!important}.report-only{display:block!important}
+      .shell{max-width:none;margin:0;padding:0}.report-page{page-break-after:always}.report-page:last-child{page-break-after:auto}
+      .report-head{border-bottom:2px solid #173e5c;padding-bottom:7px;margin-bottom:12px}.report-head h1{margin:0;color:#173e5c;font-size:20pt}.report-head p{margin:4px 0 0;color:#555}
+      .report-only table{min-width:0;font-size:8pt}.report-only th{position:static;padding:4px 3px}.report-only td{padding:4px 3px}
+      .report-only h2{font-size:14pt;margin:12px 0 7px}.report-only svg{max-height:210mm}
+    }
+  </style>
+</head>
+<body>
+<header class="app-header screen-only">
+  <div class="header-inner">
+    <div>
+      <h1>电位差计校准分析台</h1>
+      <p class="subtitle">UJ36A + ZX21A｜15点升降程校准｜两类异常自动筛查｜定向复测</p>
+    </div>
+    <div class="header-badge">B类标准不确定度分析</div>
+  </div>
+</header>
+
+<main class="shell">
+  <section class="screen-only">
+    <div class="toolbar">
+      <div class="toolbar-group"><button id="calcBtn">重新分析</button><button id="sampleBtn" class="secondary">恢复示例</button><button id="clearBtn" class="danger">清空数据</button></div>
+      <div class="toolbar-group"><button id="saveBtn" class="secondary">保存项目</button><label class="button secondary" for="loadFile">导入项目</label><input id="loadFile" type="file" accept="application/json,.json"><button id="csvBtn" class="secondary">导出CSV</button><button id="printBtn">生成报告</button></div>
+    </div>
+
+    <section class="panel" aria-labelledby="configTitle"><div class="panel-head"><div><h2 id="configTitle">1. 实验与仪器参数</h2><p>先确认仪器型号、量程、准确度等级和误差参数，再录入测量数据。</p></div></div>
+      <div class="config-body"><div class="form-grid" id="configForm">
+        <div><label>实验名称</label><input data-key="experimentName" value="UJ36A电位差计校准毫安表"></div><div><label>实验人员</label><input data-key="operator" placeholder="姓名"></div><div><label>实验日期</label><input data-key="date" type="date"></div><div><label>环境温度</label><div class="unit"><input data-key="temperature" type="number" step="0.1" value="20"><span>℃</span></div></div>
+        <div><label>毫安表满量程</label><div class="unit"><input data-key="fullScale" type="number" step="0.1" value="1.5"><span>mA</span></div></div><div><label>毫安表铭牌等级</label><div class="unit"><input data-key="meterClass" type="number" step="0.1" value="0.5"><span>级</span></div></div><div><label>ZX21A设置电阻</label><div class="unit"><input data-key="resistance" type="number" step="0.001" value="100"><span>Ω</span></div></div><div><label>ZX21A准确度</label><div class="unit"><input data-key="resistanceAccuracy" type="number" step="0.01" value="0.1"><span>%</span></div></div>
+        <div><label>ZX21A固定误差项</label><div class="unit"><input data-key="resistanceFixed" type="number" step="0.001" value="0.005"><span>Ω</span></div></div><div><label>UJ36A准确度</label><div class="unit"><input data-key="potAccuracy" type="number" step="0.01" value="0.1"><span>%</span></div></div><div><label>×1挡最小分度 U₁</label><div class="unit"><input data-key="u1x1" type="number" step="0.01" value="0.05"><span>mV</span></div></div><div><label>×0.2挡最小分度 U₁</label><div class="unit"><input data-key="u1x02" type="number" step="0.01" value="0.01"><span>mV</span></div></div>
+        <div><label>黄色预警比例</label><div class="unit"><input data-key="nearRatio" type="number" step="0.05" min="0" max="1" value="0.7"><span>×MPE</span></div></div><div><label>备注</label><input data-key="notes" placeholder="选填"></div>
+      </div><div class="method-note">本实验参数下，示值误差限值为 <b id="errorLimitText">±0.00750 mA</b>，升降变差限值为 <b id="variationLimitText">0.00750 mA</b>；超过限值标红，达到70%预警线但尚未超限标黄。黄色预警线由本程序用于提前复核，不是检定规程规定的合格界限。</div></div>
+    </section>
+
+    <section class="panel" aria-labelledby="dataTitle"><div class="panel-head"><div><h2 id="dataTitle">2. 15点升降程测量数据</h2><p>输入已经乘过倍率的最终电压值；选择倍率只用于匹配对应的最小分度 U₁。</p></div><div class="legend"><span><i class="dot green"></i>正常</span><span><i class="dot amber"></i>预警复测</span><span><i class="dot red"></i>超差复测</span></div></div>
+      <div class="table-wrap"><table id="dataTable"><thead><tr><th>示值/mA</th><th>升程U/mV</th><th>挡位</th><th>降程U/mV</th><th>挡位</th><th>平均U/mV</th><th>参考I/mA</th><th>示值误差/mA</th><th>修正值/mA</th><th>升降变差/mA</th><th>B类u<sub>B</sub>/mA</th><th>判定</th></tr></thead><tbody></tbody></table></div>
+    </section>
+
+    <div class="hero-grid">
+      <section class="analysis-hero" aria-labelledby="overviewTitle"><div class="section-kicker">ANALYSIS RESULT</div><h2 id="overviewTitle">3. 校准结果摘要</h2><p class="hero-conclusion" id="heroConclusion">正在分析测量数据……</p><div class="metric-row" id="metrics"></div></section>
+      <aside class="scan-panel" aria-labelledby="scanTitle"><div class="scan-head"><div><h2 id="scanTitle">两类异常自动筛查</h2><p>逐点判断示值是否准确、正反行程是否一致</p></div><div class="scan-total"><b id="scanCount">0</b><span>复测点</span></div></div><div class="scan-list" id="scanList"></div></aside>
+    </div>
+
+    <div class="analysis-grid"><section class="panel" aria-labelledby="chartTitle"><div class="panel-head"><div><h2 id="chartTitle">4. 修正曲线与异常定位</h2><p>蓝、橙线显示升降程差异，黑色粗线为平均修正曲线；绿色区域为±MPE。</p></div></div><div class="chart-wrap" id="chartHost"></div></section>
+      <aside class="panel formula-panel" aria-labelledby="formulaTitle"><h2 id="formulaTitle">计算与判定依据</h2><p>两项判定均直接来自正、反行程原始记录。</p><div class="formula"><span class="formula-caption">参考电流</span>I<sub>ref</sub> = (I<sub>↑</sub> + I<sub>↓</sub>) / 2 = Ū / R<sub>s</sub></div><div class="formula"><span class="formula-caption">示值误差：判断毫安表示值是否准确</span>ΔI = I<sub>示</sub> − I<sub>ref</sub><br>C = −ΔI</div><div class="formula"><span class="formula-caption">最大允许误差</span>MPE = (准确度等级 / 100) × 满量程</div><div class="formula"><span class="formula-caption">正反行程差：判断两个测量方向是否一致</span>V = |I<sub>↑</sub> − I<sub>↓</sub>|</div><div class="formula-note">正反行程差在JJG 124—2005中称为“升降变差”，其数值不应超过最大允许误差的绝对值。|ΔI|或V超过限值标红；达到70%预警线但尚未超限标黄。B类不确定度单独列示，不参与红黄判定。</div></aside>
+    </div>
+
+    <section class="panel" aria-labelledby="retestTitle"><div class="panel-head"><div><h2 id="retestTitle">5. 异常点复测清单</h2><p>对标记点重新完成升程和降程测量，再判断示值误差与升降变差。</p></div></div><p class="retest-intro">每个点录入3组完整的升、降程复测数据。程序重新计算两项指标；原始记录保留，不直接删除或覆盖。</p><div class="retest-host" id="retestHost"></div></section>
+  </section>
+  <section id="report" class="report-only"></section>
+</main>
+
+<script>
+(() => {
+  'use strict';
+  const sampleUp=[10.70,20.55,30.85,40.75,50.65,60.15,69.85,79.65,89.55,99.20,109.55,119.90,129.55,138.80,149.20];
+  const sampleDown=[10.30,20.20,29.95,40.15,49.80,60.10,69.50,79.55,89.40,99.30,109.35,119.20,129.25,139.10,148.85];
+  const storageKey='potentiometer-calibration-project-v3';
+  const standardClasses=[0.1,0.2,0.5,1.0,1.5,2.5,5.0];
+  const $=s=>document.querySelector(s);
+  const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));
+  const n=v=>{if(v==null||String(v).trim()==='')return null;const x=Number(v);return Number.isFinite(x)?x:null};
+  const f=(v,d=5)=>v==null||!Number.isFinite(v)?'—':Number(v).toFixed(d);
+  const today=()=>new Date().toISOString().slice(0,10);
+  const defaultConfig={experimentName:'UJ36A电位差计校准毫安表',operator:'',date:today(),temperature:20,fullScale:1.5,meterClass:.5,resistance:100,resistanceAccuracy:.1,resistanceFixed:.005,potAccuracy:.1,u1x1:.05,u1x02:.01,nearRatio:.7,notes:''};
+  const sampleRows=()=>Array.from({length:15},(_,i)=>({point:(i+1)/10,up:sampleUp[i],upRange:'x1',down:sampleDown[i],downRange:'x1'}));
+  let state={config:{...defaultConfig},rows:sampleRows(),retests:{}};
+  let last=null;
+  function syncConfigFromUI(){document.querySelectorAll('#configForm [data-key]').forEach(el=>{const key=el.dataset.key;state.config[key]=el.type==='number'?n(el.value):el.value})}
+  function syncConfigToUI(){document.querySelectorAll('#configForm [data-key]').forEach(el=>{el.value=state.config[el.dataset.key]??''})}
+  function maxPermissibleError(){const c=state.config;return (c.meterClass/100)*c.fullScale}
+  function u1For(range){return range==='x02'?state.config.u1x02:state.config.u1x1}
+  function assessedClass(percent){return standardClasses.find(v=>percent<=v+1e-12)??'>5.0'}
+  function pointText(rows){return rows.length?rows.map(r=>r.point.toFixed(1)).join('、')+' mA':'未发现'}
+
+  function calculate(){
+    syncConfigFromUI();const c=state.config,R=c.resistance,mpe=maxPermissibleError();const deltaR=R?R*c.resistanceAccuracy/100+c.resistanceFixed:null;const uR=deltaR==null?null:deltaR/Math.sqrt(3);
+    const results=state.rows.map(row=>{const up=n(row.up),down=n(row.down);if(up==null||down==null||!R)return {...row,valid:false};const meanU=(up+down)/2,upI=up/R,downI=down/R,meanI=meanU/R;const error=row.point-meanI,correction=meanI-row.point,hysteresis=Math.abs(upI-downI);const u1=Math.max(u1For(row.upRange),u1For(row.downRange));const deltaU=c.potAccuracy/100*meanU+u1,uU=deltaU/Math.sqrt(3);const alpha=meanU?uU/meanU:0,beta=uR/R;const uB=meanI*Math.sqrt(alpha*alpha+beta*beta);return {...row,valid:true,upI,downI,meanU,meanI,error,correction,hysteresis,u1,deltaU,uU,deltaR,uR,uB,upCorrection:upI-row.point,downCorrection:downI-row.point}});
+    results.forEach(r=>{if(!r.valid)return;const near=Math.max(0,Math.min(1,c.nearRatio??.7))*mpe,eps=1e-12,absError=Math.abs(r.error);r.flags={errorFail:absError>mpe+eps,errorNear:absError<=mpe+eps&&absError>=near-eps,hysteresisFail:r.hysteresis>mpe+eps,hysteresisNear:r.hysteresis<=mpe+eps&&r.hysteresis>=near-eps};r.reasons=[];if(r.flags.errorFail)r.reasons.push('示值误差超限');else if(r.flags.errorNear)r.reasons.push('示值误差达到预警线');if(r.flags.hysteresisFail)r.reasons.push('升降变差超限');else if(r.flags.hysteresisNear)r.reasons.push('升降变差达到预警线');const fail=r.flags.errorFail||r.flags.hysteresisFail;const watch=r.flags.errorNear||r.flags.hysteresisNear;r.status=fail?'fail':watch?'watch':'ok';r.statusText=fail?'超差复测':watch?'预警复测':'正常';r.reason=r.reasons.join('；')||'两项指标均正常'});
+    const valid=results.filter(x=>x.valid),pickMax=fn=>valid.length?valid.reduce((a,b)=>fn(b)>fn(a)?b:a):null;const maxError=pickMax(x=>Math.abs(x.error)),maxH=pickMax(x=>x.hysteresis),maxUB=pickMax(x=>x.uB);const assessedPercent=maxError&&c.fullScale?Math.abs(maxError.error)/c.fullScale*100:null,grade=assessedPercent==null?null:assessedClass(assessedPercent);const counts={ok:valid.filter(x=>x.status==='ok').length,watch:valid.filter(x=>x.status==='watch').length,fail:valid.filter(x=>x.status==='fail').length};const scans={error:valid.filter(x=>x.flags.errorFail||x.flags.errorNear),hysteresis:valid.filter(x=>x.flags.hysteresisFail||x.flags.hysteresisNear)};const retest=valid.filter(x=>x.status!=='ok');last={results,valid,mpe,deltaR,uR,maxError,maxH,maxUB,assessedPercent,grade,counts,scans,retest,validCount:valid.length};renderComputed();renderOverview();renderScanPanel();renderRetests();renderChart();buildReport();saveLocal();
+  }
+
+  function renderTable(){const tb=$('#dataTable tbody');tb.innerHTML='';state.rows.forEach((r,i)=>{const tr=document.createElement('tr');tr.dataset.i=i;tr.innerHTML=`<td><b>${r.point.toFixed(1)}</b></td><td><input aria-label="${r.point.toFixed(1)}mA升程电压" data-field="up" type="number" step="0.01" value="${r.up??''}"></td><td><select aria-label="升程挡位" data-field="upRange"><option value="x1" ${r.upRange==='x1'?'selected':''}>×1</option><option value="x02" ${r.upRange==='x02'?'selected':''}>×0.2</option></select></td><td><input aria-label="${r.point.toFixed(1)}mA降程电压" data-field="down" type="number" step="0.01" value="${r.down??''}"></td><td><select aria-label="降程挡位" data-field="downRange"><option value="x1" ${r.downRange==='x1'?'selected':''}>×1</option><option value="x02" ${r.downRange==='x02'?'selected':''}>×0.2</option></select></td><td data-out="meanU">—</td><td data-out="meanI">—</td><td data-out="error">—</td><td data-out="correction">—</td><td data-out="hysteresis">—</td><td data-out="uB">—</td><td data-out="status">—</td>`;tr.querySelectorAll('[data-field]').forEach(el=>el.addEventListener('change',()=>{const field=el.dataset.field;state.rows[i][field]=el.tagName==='SELECT'?el.value:n(el.value);calculate()}));tb.appendChild(tr)})}
+  function renderComputed(){if(!last)return;last.results.forEach((r,i)=>{const tr=document.querySelector(`#dataTable tbody tr[data-i="${i}"]`);if(!tr)return;tr.className=r.valid?`status-${r.status}`:'';const put=(key,value)=>{const el=tr.querySelector(`[data-out="${key}"]`);if(el)el.textContent=value};put('meanU',f(r.meanU,3));put('meanI',f(r.meanI,5));put('error',f(r.error,5));put('correction',f(r.correction,5));put('hysteresis',f(r.hysteresis,5));put('uB',f(r.uB,6));const st=tr.querySelector('[data-out="status"]');st.innerHTML=r.valid?`<span class="status-pill ${r.status}" title="${esc(r.reason)}">${esc(r.statusText)}</span>`:'—'})}
+  function renderOverview(){if(!last)return;const s=last,c=state.config,ready=s.validCount===15;let conclusion='请补全升降程数据后生成校准结论。';if(s.validCount){const gradeText=typeof s.grade==='number'?s.grade.toFixed(1)+'级':String(s.grade);conclusion=`已完成${s.validCount}个点分析。最大绝对示值误差为${f(Math.abs(s.maxError.error),5)} mA，基本误差为${f(s.assessedPercent,3)}%，按相邻标准等级向上选取为${gradeText}${ready&&typeof s.grade==='number'&&s.grade>c.meterClass?'，不能满足铭牌'+c.meterClass+'级要求':'。'}`}$('#heroConclusion').textContent=conclusion;const gradeText=s.grade==null?'—':(typeof s.grade==='number'?s.grade.toFixed(1)+'级':s.grade+'级');$('#metrics').innerHTML=`<div class="metric grade"><span>评定准确度等级</span><strong>${esc(gradeText)}</strong><em>基本误差 ${f(s.assessedPercent,3)}%</em></div><div class="metric fail"><span>超差复测点</span><strong>${s.counts.fail}</strong><em>${pointText(s.valid.filter(x=>x.status==='fail'))}</em></div><div class="metric watch"><span>预警复测点</span><strong>${s.counts.watch}</strong><em>${pointText(s.valid.filter(x=>x.status==='watch'))}</em></div><div class="metric ub"><span>最大B类 uB</span><strong>${s.maxUB?f(s.maxUB.uB,6):'—'}</strong><em>${s.maxUB?'位于 '+s.maxUB.point.toFixed(1)+' mA点':'mA'}</em></div>`}
+  function renderScanPanel(){
+    if(!last)return;
+    $('#scanCount').textContent=last.retest.length;
+    const nearRatio=Math.max(0,Math.min(1,state.config.nearRatio??.7)),warningValue=nearRatio*last.mpe,warning=f(warningValue,5),limit=f(last.mpe,5);
+    $('#errorLimitText').textContent=`±${limit} mA`;
+    $('#variationLimitText').textContent=`${limit} mA`;
+    const describe=(r,value)=>{const v=Math.abs(value),eps=1e-12;if(v>last.mpe+eps)return `${r.point.toFixed(1)} mA点：${f(v,5)} mA ＞ ${limit} mA，标红并复测。`;if(v>=warningValue-eps)return `${r.point.toFixed(1)} mA点：${f(v,5)} mA，已达到${Math.round(nearRatio*100)}%预警线，标黄并复测。`;return ''};
+    const errorExample=last.valid.find(r=>r.flags.errorFail)||last.valid.find(r=>r.flags.errorNear)||last.scans.error[0];
+    const variationExample=last.valid.find(r=>r.flags.hysteresisFail)||last.valid.find(r=>r.flags.hysteresisNear)||last.scans.hysteresis[0];
+    const data=[
+      {title:'① 示值误差筛查',desc:`黄色 ${warning}～${limit}，红色 ＞${limit} mA`,definition:'毫安表示值与正、反行程平均参考电流之差，用来判断毫安表的示值是否准确。',rows:last.scans.error,value:r=>Math.abs(r.error),example:errorExample?describe(errorExample,errorExample.error):''},
+      {title:'② 正反行程差筛查',desc:`黄色 ${warning}～${limit}，红色 ＞${limit} mA`,definition:'在同一刻度点，正程和反程测得的参考电流之差，用来判断两个测量方向是否一致；检定规程中称为“升降变差”。',rows:last.scans.hysteresis,value:r=>r.hysteresis,example:variationExample?describe(variationExample,variationExample.hysteresis):''}
+    ];
+    $('#scanList').innerHTML=data.map(g=>`<div class="scan-item"><div class="scan-item-top"><b>${g.title}</b><small>${g.desc}</small></div><p class="scan-definition">${g.definition}</p><div class="point-list">${g.rows.length?g.rows.map(r=>`<span class="point-tag ${r.status}" title="${esc(r.reason)}">${r.point.toFixed(1)} mA｜${f(g.value(r),5)}</span>`).join(''):'<span class="point-tag ok">未发现异常点</span>'}</div>${g.example?`<p class="scan-example"><b>当前数据示例：</b>${g.example}</p>`:''}</div>`).join('')
+  }
+
+  function retestAnalysis(r,rec){
+    const ups=(rec.upValues||[]).map(n),downs=(rec.downValues||[]).map(n),pairs=[];
+    for(let i=0;i<3;i++)if(ups[i]!=null&&downs[i]!=null)pairs.push({up:ups[i],down:downs[i]});
+    const R=state.config.resistance,mpe=last.mpe,near=Math.max(0,Math.min(1,state.config.nearRatio??.7))*mpe;
+    if(pairs.length<3)return {n:pairs.length,text:`已完成${pairs.length}组，请录满3组升、降程复测数据。`};
+    const meanUpV=pairs.reduce((s,p)=>s+p.up,0)/pairs.length,meanDownV=pairs.reduce((s,p)=>s+p.down,0)/pairs.length;
+    const pairCurrents=pairs.map(p=>(p.up+p.down)/(2*R)),meanI=pairCurrents.reduce((a,b)=>a+b,0)/pairCurrents.length;
+    const sdI=Math.sqrt(pairCurrents.reduce((s,v)=>s+(v-meanI)**2,0)/(pairCurrents.length-1));
+    const repeatError=r.point-meanI,hysteresis=Math.abs(meanUpV/R-meanDownV/R);
+    const eps=1e-12,fail=Math.abs(repeatError)>mpe+eps||hysteresis>mpe+eps,watch=!fail&&(Math.abs(repeatError)>=near-eps||hysteresis>=near-eps);
+    let text;if(sdI>.3*mpe)text='三组结果离散较大，重复性较差；应检查调节、平衡和读数过程后重新测量。';else if(fail)text='复测后仍有指标超限，提示该点可能存在稳定的仪表性能偏差。';else if(watch)text='复测后未超限，但仍处于预警范围，建议保留记录并继续核实。';else text='复测后两项指标均正常，原记录可能受到读数、调节或录入影响。';
+    return {n:pairs.length,meanUpV,meanDownV,meanI,sdI,repeatError,hysteresis,status:fail?'fail':watch?'watch':'ok',text}
+  }
+  function renderRetests(){
+    const host=$('#retestHost'),cands=last?last.retest:[];host.innerHTML='';
+    if(!cands.length){host.innerHTML='<div class="empty">当前没有需要自动复测的点。</div>';return}
+    cands.forEach(r=>{
+      const key=r.point.toFixed(1),rec=state.retests[key]||(state.retests[key]={upValues:['','',''],downValues:['','','']});
+      if(!Array.isArray(rec.upValues))rec.upValues=['','',''];if(!Array.isArray(rec.downValues))rec.downValues=['','',''];
+      const box=document.createElement('div');box.className='retest-card';
+      box.innerHTML=`<div class="retest-title"><h3>${key} mA</h3>${r.reasons.map(reason=>`<span class="reason-tag">${esc(reason)}</span>`).join('')}</div><div class="retest-grid">${Array.from({length:3},(_,i)=>`<div class="retest-pair"><b>第${i+1}组完整复测</b><div><label>升程 U/mV</label><input data-up="${i}" type="number" step="0.01" value="${rec.upValues[i]??''}"></div><div><label>降程 U/mV</label><input data-down="${i}" type="number" step="0.01" value="${rec.downValues[i]??''}"></div></div>`).join('')}</div><div class="retest-result"></div>`;
+      const update=()=>{box.querySelectorAll('[data-up]').forEach(el=>rec.upValues[+el.dataset.up]=el.value);box.querySelectorAll('[data-down]').forEach(el=>rec.downValues[+el.dataset.down]=el.value);const a=retestAnalysis(r,rec);box.querySelector('.retest-result').innerHTML=a.n>=3?`复测参考电流 <b>${f(a.meanI,5)} mA</b>，示值误差 <b>${f(a.repeatError,5)} mA</b>，升降变差 <b>${f(a.hysteresis,5)} mA</b>，三组平均电流标准差 <b>${f(a.sdI,5)} mA</b>。<br><span class="status-pill ${a.status}">${esc(a.text)}</span>`:esc(a.text);buildReport();saveLocal()};
+      box.querySelectorAll('input').forEach(el=>el.addEventListener('change',update));update();host.appendChild(box)
+    })
+  }
+
+  function renderChart(){const host=$('#chartHost');if(!last||!last.validCount){host.innerHTML='<div class="empty">录入完整数据后显示修正曲线。</div>';return}host.innerHTML=makeChartSVG(last.valid,last.mpe,900,430)}
+  function makeChartSVG(data,mpe,w,h){
+    const pad={l:76,r:76,t:42,b:58},pw=w-pad.l-pad.r,ph=h-pad.t-pad.b;
+    const ys=data.flatMap(d=>[d.upCorrection,d.downCorrection,d.correction,-mpe,mpe]),rawMin=Math.min(...ys),rawMax=Math.max(...ys),span=rawMax-rawMin||.01;
+    const rough=span/5,power=10**Math.floor(Math.log10(rough)),scaled=rough/power,step=(scaled<=1?1:scaled<=2?2:scaled<=5?5:10)*power;
+    let ymin=Math.floor((rawMin-span*.06)/step)*step,ymax=Math.ceil((rawMax+span*.06)/step)*step;if(ymin===ymax){ymin-=step;ymax+=step}
+    const x=v=>pad.l+(v-.1)/1.4*pw,y=v=>pad.t+(ymax-v)/(ymax-ymin)*ph,path=field=>data.map((d,i)=>(i?'L':'M')+x(d.point).toFixed(1)+','+y(d[field]).toFixed(1)).join(' ');
+    let svg=`<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="毫安表升程、降程及平均修正曲线"><rect width="${w}" height="${h}" fill="#fff"/><rect x="${pad.l}" y="${y(mpe)}" width="${pw}" height="${y(-mpe)-y(mpe)}" fill="#eaf7f2"/>`;
+    for(let v=Math.ceil(ymin/step)*step;v<=ymax+step/100;v+=step){const vv=Math.abs(v)<step/100?0:v,yy=y(vv);svg+=`<line x1="${pad.l}" y1="${yy}" x2="${w-pad.r}" y2="${yy}" stroke="#dfe7ed"/><text x="${pad.l-10}" y="${yy+4}" text-anchor="end" font-size="11" fill="#607487">${vv.toFixed(4)}</text>`}
+    svg+=`<line x1="${pad.l}" y1="${y(mpe)}" x2="${w-pad.r}" y2="${y(mpe)}" stroke="#4f9e87" stroke-width="1.4" stroke-dasharray="5 5"/><line x1="${pad.l}" y1="${y(-mpe)}" x2="${w-pad.r}" y2="${y(-mpe)}" stroke="#4f9e87" stroke-width="1.4" stroke-dasharray="5 5"/><text x="${w-pad.r+7}" y="${y(mpe)+4}" font-size="10" fill="#14745f">+MPE ${mpe.toFixed(5)}</text><text x="${w-pad.r+7}" y="${y(-mpe)+4}" font-size="10" fill="#14745f">−MPE ${mpe.toFixed(5)}</text>`;
+    svg+=`<path d="${path('upCorrection')}" fill="none" stroke="#1677b8" stroke-width="1.8" opacity=".72"/><path d="${path('downCorrection')}" fill="none" stroke="#db7c26" stroke-width="1.8" opacity=".72"/>`;
+    data.forEach(d=>{svg+=`<circle cx="${x(d.point)}" cy="${y(d.upCorrection)}" r="2.2" fill="#1677b8" opacity=".78"/><circle cx="${x(d.point)}" cy="${y(d.downCorrection)}" r="2.2" fill="#db7c26" opacity=".78"/>`;if(d.flags.hysteresisFail||d.flags.hysteresisNear){const color=d.flags.hysteresisFail?'#b52b24':'#d29625';svg+=`<line x1="${x(d.point)}" y1="${y(d.upCorrection)}" x2="${x(d.point)}" y2="${y(d.downCorrection)}" stroke="${color}" stroke-width="3" opacity=".8"><title>${d.point.toFixed(1)} mA升降变差：${d.hysteresis.toFixed(5)} mA</title></line>`}});
+    svg+=`<path d="${path('correction')}" fill="none" stroke="#152c3d" stroke-width="3.4"/>`;
+    data.forEach(d=>{const color=d.status==='fail'?'#b52b24':d.status==='watch'?'#d29625':'#152c3d',radius=d.status==='ok'?3.8:5.4;svg+=`<circle cx="${x(d.point)}" cy="${y(d.correction)}" r="${radius}" fill="${color}" stroke="#fff" stroke-width="1.6"><title>${d.point.toFixed(1)} mA：${esc(d.reason)}；示值误差${d.error.toFixed(5)} mA；升降变差${d.hysteresis.toFixed(5)} mA</title></circle>`});
+    for(let i=1;i<=15;i++){const v=i/10,xx=x(v);svg+=`<text x="${xx}" y="${h-27}" text-anchor="middle" font-size="11" fill="#607487">${v.toFixed(1)}</text>`}
+    svg+=`<line x1="${pad.l}" y1="${y(0)}" x2="${w-pad.r}" y2="${y(0)}" stroke="#657987" stroke-width="1.2"/><text x="${w/2}" y="${h-6}" text-anchor="middle" font-size="12" fill="#294860">毫安表示值 / mA</text><text transform="translate(17 ${h/2}) rotate(-90)" text-anchor="middle" font-size="12" fill="#294860">修正值 / mA</text><g transform="translate(${pad.l+6},20)" font-size="11"><line x1="0" y1="0" x2="22" y2="0" stroke="#1677b8" stroke-width="2" opacity=".72"/><text x="27" y="4">升程</text><line x1="78" y1="0" x2="100" y2="0" stroke="#db7c26" stroke-width="2" opacity=".72"/><text x="105" y="4">降程</text><line x1="156" y1="0" x2="181" y2="0" stroke="#152c3d" stroke-width="3.4"/><text x="187" y="4">平均修正值</text><circle cx="295" cy="0" r="4" fill="#d29625"/><text x="304" y="4">预警复测</text><circle cx="382" cy="0" r="4" fill="#b52b24"/><text x="391" y="4">超差复测</text></g></svg>`;
+    return svg
+  }
+
+  function buildReport(){
+    if(!last)return;
+    const c=state.config,r=$('#report'),valid=last.valid,cands=last.retest,gradeText=last.grade==null?'—':(typeof last.grade==='number'?last.grade.toFixed(1)+'级':last.grade+'级');
+    const warning=Math.max(0,Math.min(1,c.nearRatio??.7))*last.mpe;
+    const conclusion=last.counts.fail?`本次校准发现${last.counts.fail}个超差复测点和${last.counts.watch}个预警复测点。最大绝对示值误差为${f(Math.abs(last.maxError.error),5)} mA，基本误差为${f(last.assessedPercent,3)}%，按相邻标准等级向上选取为${gradeText}。`:`本次校准未发现直接超差点，发现${last.counts.watch}个预警复测点，建议完成复测后再作最终结论。`;
+    const rows=valid.map(x=>`<tr><td>${x.point.toFixed(1)}</td><td>${f(x.up,2)}</td><td>${f(x.down,2)}</td><td>${f(x.meanI,5)}</td><td>${f(x.error,5)}</td><td>${f(x.correction,5)}</td><td>${f(x.hysteresis,5)}</td><td>${f(x.uB,6)}</td><td>${esc(x.statusText)}</td></tr>`).join('');
+    const ub=valid.map(x=>`<tr><td>${x.point.toFixed(1)}</td><td>${f(x.meanU,3)}</td><td>${f(x.deltaU,5)}</td><td>${f(x.uU,5)}</td><td>${f(x.deltaR,5)}</td><td>${f(x.uR,5)}</td><td>${f(x.uB,6)}</td></tr>`).join('');
+    const rr=cands.map(x=>{const rec=state.retests[x.point.toFixed(1)]||{upValues:[],downValues:[]},a=retestAnalysis(x,rec);return `<tr><td>${x.point.toFixed(1)}</td><td>${esc(x.reason)}</td><td>${a.n||0}</td><td>${a.n>=3?f(a.meanI,5):'—'}</td><td>${a.n>=3?f(a.repeatError,5):'—'}</td><td>${a.n>=3?f(a.hysteresis,5):'—'}</td><td>${esc(a.text)}</td></tr>`}).join('');
+    const head=`<div class="report-head"><h1>${esc(c.experimentName)}</h1><p>电位差计校准分析报告｜实验人员：${esc(c.operator||'未填写')}｜日期：${esc(c.date||'未填写')}｜温度：${esc(c.temperature)} ℃</p></div>`;
+    r.innerHTML=`<section class="report-page">${head}<h2>一、仪器与计算依据</h2><table><tbody><tr><th>电位差计</th><td>UJ36A，${c.potAccuracy}级</td><th>电阻箱</th><td>ZX21A，${c.resistance} Ω</td></tr><tr><th>被校毫安表</th><td>0～${c.fullScale} mA，铭牌${c.meterClass}级</td><th>最大允许误差</th><td>±${f(last.mpe,5)} mA</td></tr><tr><th>黄色预警线</th><td colspan="3">${c.nearRatio}×MPE＝${f(warning,5)} mA（教学复核线，不是合格界限）</td></tr><tr><th>电阻误差限</th><td colspan="3">ΔR＝${c.resistanceAccuracy}%×R＋${c.resistanceFixed} Ω＝${f(last.deltaR,5)} Ω</td></tr><tr><th>电位差计误差限</th><td colspan="3">ΔU＝${c.potAccuracy}%×U＋U₁；×1挡U₁＝${c.u1x1} mV，×0.2挡U₁＝${c.u1x02} mV</td></tr></tbody></table><h2>二、结果摘要</h2><table><tbody><tr><th>最大示值误差</th><td>${last.maxError?f(Math.abs(last.maxError.error),5)+' mA（'+last.maxError.point.toFixed(1)+' mA点）':'—'}</td><th>基本误差</th><td>${f(last.assessedPercent,3)}%</td></tr><tr><th>评定等级</th><td>${gradeText}</td><th>点位统计</th><td>${last.counts.fail}超差复测，${last.counts.watch}预警复测，${last.counts.ok}正常</td></tr></tbody></table><p><b>自动结论：</b>${esc(conclusion)}</p><h2>三、校准数据</h2><table><thead><tr><th>示值</th><th>升程U</th><th>降程U</th><th>参考I</th><th>示值误差</th><th>修正值</th><th>升降变差</th><th>B类uB</th><th>状态</th></tr></thead><tbody>${rows}</tbody></table></section><section class="report-page">${head}<h2>四、修正曲线与两类异常筛查</h2>${makeChartSVG(valid,last.mpe,760,410)}<p>示值误差用于判断毫安表示值是否准确；正反行程差用于判断两个测量方向是否一致，在JJG 124—2005中称为“升降变差”。蓝、橙线分别表示升程和降程修正值，黑色粗线为平均修正曲线。红色表示超过限值，黄色表示达到预警线但尚未超限。</p><table><tbody><tr><th>示值误差筛查</th><td>${esc(pointText(last.scans.error))}</td></tr><tr><th>正反行程差筛查</th><td>${esc(pointText(last.scans.hysteresis))}</td></tr></tbody></table><h2>五、异常点复测</h2>${cands.length?`<table><thead><tr><th>点位</th><th>原异常原因</th><th>完整组数</th><th>复测参考I</th><th>复测示值误差</th><th>复测升降变差</th><th>分析</th></tr></thead><tbody>${rr}</tbody></table>`:'<p>无自动标记的复测点。</p>'}</section><section class="report-page">${head}<h2>六、B类标准不确定度预算</h2><p>误差限按矩形分布处理：u<sub>U</sub>＝ΔU/√3，u<sub>R</sub>＝ΔR/√3；u<sub>B</sub>(I)＝I√[(u<sub>U</sub>/Ū)²＋(u<sub>R</sub>/R)²]。本报告不计算扩展不确定度。</p><table><thead><tr><th>点位/mA</th><th>Ū/mV</th><th>ΔU/mV</th><th>uU/mV</th><th>ΔR/Ω</th><th>uR/Ω</th><th>uB(I)/mA</th></tr></thead><tbody>${ub}</tbody></table><h2>七、说明</h2><p>示值误差限值为±MPE；按照JJG 124—2005，升降变差不应超过MPE的绝对值。黄色预警线仅用于安排复测优先级，不代表仪表超差。复测数据不直接覆盖原始记录。B类标准不确定度单独列示，不参与红黄状态判定。</p></section>`
+  }
+  function csvExport(){calculate();const c=state.config,head=['示值(mA)','升程U(mV)','升程挡位','降程U(mV)','降程挡位','平均U(mV)','参考I(mA)','示值误差(mA)','修正值(mA)','升降变差(mA)','ΔU(mV)','uU(mV)','ΔR(Ω)','uR(Ω)','B类uB(I)(mA)','状态','异常原因'],lines=[`实验名称,${c.experimentName}`,`实验人员,${c.operator}`,`日期,${c.date}`,`UJ36A准确度(%),${c.potAccuracy}`,`ZX21A电阻(Ω),${c.resistance}`,`ZX21A准确度(%),${c.resistanceAccuracy}`,`最大允许误差(mA),${last.mpe}`,`黄色预警线(mA),${c.nearRatio*last.mpe}`,`评定准确度等级,${last.grade}`,'',head.join(',')];last.results.forEach(r=>{if(r.valid)lines.push([r.point,r.up,r.upRange,r.down,r.downRange,r.meanU,r.meanI,r.error,r.correction,r.hysteresis,r.deltaU,r.uU,r.deltaR,r.uR,r.uB,r.statusText,r.reason].map(v=>`"${String(v).replace(/"/g,'""')}"`).join(','))});download('\ufeff'+lines.join('\r\n'),'电位差计校准数据.csv','text/csv;charset=utf-8')}
+  function saveProject(){syncConfigFromUI();download(JSON.stringify(state,null,2),'电位差计校准项目.json','application/json')}
+  function download(content,name,type){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([content],{type}));a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),500)}
+  function saveLocal(){try{localStorage.setItem(storageKey,JSON.stringify(state))}catch(e){}}
+  function loadLocal(){try{const saved=JSON.parse(localStorage.getItem(storageKey));if(saved&&saved.rows?.length===15)state=saved}catch(e){}}
+  function resetSample(){state={config:{...defaultConfig},rows:sampleRows(),retests:{}};syncConfigToUI();renderTable();calculate()}
+  function clearRows(){state.rows.forEach(r=>{r.up=null;r.down=null;r.upRange='x1';r.downRange='x1'});state.retests={};renderTable();calculate()}
+  $('#calcBtn').addEventListener('click',calculate);$('#sampleBtn').addEventListener('click',resetSample);$('#saveBtn').addEventListener('click',saveProject);$('#csvBtn').addEventListener('click',csvExport);$('#printBtn').addEventListener('click',()=>{calculate();window.print()});$('#clearBtn').addEventListener('click',()=>{if(confirm('确定清空15点测量数据吗？仪器参数将保留。'))clearRows()});
+  $('#loadFile').addEventListener('change',event=>{const file=event.target.files[0];if(!file)return;const reader=new FileReader();reader.onload=()=>{try{const saved=JSON.parse(reader.result);if(!saved.rows||saved.rows.length!==15)throw Error('数据格式不正确');state=saved;state.config={...defaultConfig,...state.config};delete state.config.coverageK;delete state.config.localRatio;state.retests=state.retests||{};syncConfigToUI();renderTable();calculate()}catch(e){alert('项目文件无法读取：'+e.message)}};reader.readAsText(file);event.target.value=''});
+  document.querySelectorAll('#configForm [data-key]').forEach(el=>el.addEventListener('change',calculate));loadLocal();state.config={...defaultConfig,...state.config};delete state.config.coverageK;delete state.config.localRatio;syncConfigToUI();renderTable();calculate();
+})();
+</script>
+</body>
+</html>
